@@ -17,6 +17,6 @@
 
 1. Склонируй репозиторий:
    ```bash
-   git clone https://github.com/username/failover-infra-yc.git
+   git clone https://github.com/Reqroot-pro/failover-infra-yc.git
    cd failover-infra-yc
 
