@@ -1,13 +1,14 @@
 filebeat.inputs:
+# --- NGINX Access Log ---
   - type: filestream
-    id: nginx-log-input
+    id: nginx-access-log
     enabled: true
     paths:
-      - /var/log/nginx/*.log
+      - /var/log/nginx/access.log*
 
     # Добавляем мета-поле для идентификации типа лога
     fields:
-      log_type: nginx
+      log_type: nginx_access
     fields_under_root: true
 
     # Обработка многострочных логов — паттерн для объединения строк
@@ -16,6 +17,18 @@ filebeat.inputs:
       pattern: '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
       negate: true
       match: after
+
+# --- NGINX Error Log ---
+  - type: filestream
+    id: nginx-error-log
+    enabled: true
+    paths:
+      - /var/log/nginx/error.log*
+
+    # Добавляем мета-поле для идентификации типа лога
+    fields:
+      log_type: nginx_error
+    fields_under_root: true
 
 output.elasticsearch:
   hosts: ["http://{{ hostvars['elastic']['ansible_host'] }}:9200"]
