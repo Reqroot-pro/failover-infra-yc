@@ -1,0 +1,69 @@
+---
+# Авторизация в Zabbix API
+- name: Authorize in Zabbix API
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "user.login"
+      params:
+        username: "{{ zabbix_user }}"
+        password: "{{ zabbix_password }}"
+      id: 1
+    return_content: yes
+  register: zabbix_auth
+
+- name: Fail if authorization failed
+  fail:
+    msg: "Authorization in Zabbix API failed."
+  when: zabbix_auth.json.result is not defined
+
+# Получение полных данных по дашборду
+- name: Retrieve specific dashboard by ID
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "dashboard.get"
+      params:
+        dashboardids: [ "{{ dashboard_id }}" ] 
+        output: "extend"
+        selectPages: "extend"
+        selectUsers: "extend"
+        selectUserGroups: "extend"
+      id: 2
+    return_content: yes
+  register: dashboard_data
+
+- name: Fail if dashboard not found
+  fail:
+    msg: "Dashboard with ID {{ dashboard_id }} not found."
+  when: dashboard_data.json.result | length == 0
+
+# Отображаем полные данные о дашборде
+- name: Display full dashboard data
+  debug:
+    msg: "{{ dashboard_data.json.result }}"
+    
+# Сохраняем в файл данные о дашборде  
+- name: Save dashboard JSON to file
+  copy:
+    content: "{{ dashboard_data.json.result[0] | to_nice_json }}"
+    dest: "dashboard_{{ dashboard_id }}.json"
+    
+# Копируем файл на локальную машину
+- name: Fetch the dashboard JSON to local machine
+  ansible.builtin.fetch:
+    src: "dashboard_{{ dashboard_id }}.json"
+    dest: "~/export_zabbix/dashboard_{{ dashboard_id }}.json"
+    flat: yes   
+    

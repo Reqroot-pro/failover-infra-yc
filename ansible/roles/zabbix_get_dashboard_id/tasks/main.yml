@@ -1,0 +1,48 @@
+- name: Authorize in Zabbix API
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "user.login"
+      params:
+        username: "{{ zabbix_user }}"
+        password: "{{ zabbix_password }}"
+      id: 1
+    return_content: yes
+  register: zabbix_auth
+
+- name: Fail if authorization failed
+  fail:
+    msg: "Authorization in Zabbix API failed."
+  when: zabbix_auth.json.result is not defined
+
+- name: Get all dashboards IDs
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "dashboard.get"
+      params:
+        output: ["dashboardid", "name"]
+      id: 1
+    return_content: yes
+  register: dashboard_result
+
+- name: Fail if no dashboards found
+  fail:
+    msg: "No dashboards found!"
+  when: (dashboard_result.json.result | default([])) | length == 0
+
+- name: Show all dashboard IDs
+  debug:
+    var: dashboard_result.json.result
+

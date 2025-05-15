@@ -1,0 +1,14 @@
+# Zabbix agent configuration file
+
+# Server settings
+Server={{ hostvars['zabbix']['ansible_host'] }}
+ServerActive={{ hostvars['zabbix']['ansible_host'] }}
+Hostname={{ inventory_hostname }}
+
+# Enable and configure monitoring of system resources
+Timeout=3
+LogFileSize=0
+LogFile=/var/log/zabbix/zabbix_agentd.log
+PidFile=/var/run/zabbix/zabbix_agentd.pid
+EnableRemoteCommands=1
+

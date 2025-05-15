@@ -1,0 +1,37 @@
+---
+- name: Wait for apt lock to be released
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  retries: 12
+  delay: 5
+  register: result
+  until: result.rc == 0
+  become: yes
+  
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: true
+  become: yes   
+
+- name: Copy website index file
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  become: yes
+  notify: Restart nginx
+
+# Перезапустить и включить nginx
+- name: Ensure nginx is restarted and enabled
+  service:
+    name: nginx
+    state: restarted
+    enabled: true
+  become: yes
+

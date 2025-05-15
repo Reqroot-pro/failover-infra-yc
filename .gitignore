@@ -1,0 +1,28 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.auto.tfvars
+*secret*.tfvars
+crash.log
+terraform.tfvars
+
+# Ansible
+*.retry
+ansible.log
+
+# Sensitive/Private keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# IDE/editor settings
+.idea/
+.vscode/
+*.iml
+out/
+
+# System
+.DS_Store
+Thumbs.db

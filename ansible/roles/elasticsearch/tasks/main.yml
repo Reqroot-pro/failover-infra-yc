@@ -1,0 +1,113 @@
+---
+- name: Wait for apt lock to be released
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  retries: 12
+  delay: 5
+  register: result
+  until: result.rc == 0
+  become: yes
+
+- name: Install Docker dependencies
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+    state: present
+    update_cache: yes
+  become: yes  
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  become: yes  
+
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+  become: yes  
+
+- name: Install Docker
+  apt:
+    name: docker-ce
+    state: present
+    update_cache: yes
+  become: yes  
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: true
+  become: yes
+  
+- name: Pull Elasticsearch image from Docker Hub
+  docker_image:
+    name: elasticsearch
+    tag: "8.17.5"
+    source: pull
+  become: yes
+
+- name: Ensure Elasticsearch data directory exists
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0755'
+  loop:
+    - { path: "/data/elasticsearch/logs" }
+    - { path: "/data/elasticsearch/data" }
+  become: yes
+
+- name: Configure Elasticsearch
+  template:
+    src: elasticsearch.yml.j2
+    dest: /data/elasticsearch/elasticsearch.yml
+    owner: 1000
+    group: 1000
+    mode: '0644'
+  become: yes
+  notify: Restart Elasticsearch container
+
+- name: Run Elasticsearch container with custom config
+  docker_container:
+    name: elasticsearch
+    image: elasticsearch:8.17.5
+    user: "1000:1000"
+    state: started
+    restart_policy: always
+    recreate: yes
+    published_ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - /data/elasticsearch/data:/usr/share/elasticsearch/data
+      - /data/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - /data/elasticsearch/logs:/usr/share/elasticsearch/logs
+    env:
+      discovery.type: single-node      
+  become: yes
+
+- name: Wait for Elasticsearch HTTP port to be accessible
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 9200
+    delay: 10
+    timeout: 60
+
+- name: Check Elasticsearch HTTP response
+  uri:
+    url: "http://localhost:9200/_cluster/health"
+    method: GET
+    return_content: yes
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 10

@@ -1,0 +1,6 @@
+# Параметры подключения к Zabbix API
+zabbix_api_url: "http://{{ hostvars['zabbix']['ansible_host'] }}/zabbix/api_jsonrpc.php"
+http_url: "http://{{ hostvars['load_balancer']['ansible_host'] }}"
+zabbix_user: "Admin"
+zabbix_password: "zabbix"
+

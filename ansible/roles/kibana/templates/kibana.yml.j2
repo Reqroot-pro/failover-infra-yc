@@ -1,0 +1,5 @@
+# Kibana configuration file
+
+server.host: "0.0.0.0"
+server.port: 5601
+elasticsearch.hosts: "http://{{ hostvars['elastic']['ansible_host'] }}:9200"

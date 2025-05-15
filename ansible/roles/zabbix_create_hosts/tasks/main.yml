@@ -1,0 +1,223 @@
+---
+
+# Авторизация
+- name: Authorize in Zabbix API
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "user.login"
+      params:
+        username: "{{ zabbix_user }}"
+        password: "{{ zabbix_password }}"
+      id: 1
+    return_content: yes
+  register: zabbix_auth
+
+- name: Fail if authorization failed
+  fail:
+    msg: "Authorization in Zabbix API failed."
+  when: zabbix_auth.json.result is not defined
+
+# Получение ID группы
+- name: Get host group ID
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "hostgroup.get"
+      params:
+        filter:
+          name: [ "{{ zabbix_hostgroup_name }}" ]
+      id: 2
+    return_content: yes
+  register: group_result
+
+- name: Fail if host group not found
+  fail:
+    msg: "Host group not found!"
+  when: (group_result.json.result | default([])) | length == 0
+
+# Получение ID шаблона
+- name: Get template ID
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: "template.get"
+      params:
+        filter:
+          host: [ "{{ zabbix_template_name }}" ]
+      id: 3
+    return_content: yes
+  register: template_result
+
+- name: Fail if template not found
+  fail:
+    msg: "Template not found!"
+  when: (template_result.json.result | default([])) | length == 0
+
+# Проверка наличия хостов
+- name: Check if each host exists
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body: >
+      {{
+        {
+          "jsonrpc": "2.0",
+          "method": "host.get",
+          "params": {
+            "filter": {
+              "host": [ item ]
+            }
+          },
+          "id": 4
+        }
+      }}
+    return_content: yes
+  loop: "{{ groups['web'] }}"
+  loop_control:
+    label: "{{ item }}"
+  register: host_check_raw
+
+# Отладка: показать результаты проверки хостов
+- name: Debug - Show raw host check results
+  debug:
+    msg: "Host: {{ item.item }}, Result: {{ item.json | to_nice_json }}"
+  loop: "{{ host_check_raw.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Построение словаря результатов
+- name: Build host_check_results dict
+  set_fact:
+    host_check_results: >-
+      {{
+        dict(
+          host_check_raw.results | map(attribute='item') | zip(
+            host_check_raw.results
+          )
+        )
+      }}
+
+# Создание хостов поочередно
+- name: Create Zabbix host web1 if it does not exist
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body: >
+      {{
+        {
+          "jsonrpc": "2.0",
+          "method": "host.create",
+          "params": {
+            "host": "web1",
+            "name": "web1",
+            "interfaces": [
+              {
+                "type": 1,
+                "main": 1,
+                "useip": 1,
+                "ip": hostvars['web1'].ansible_host,
+                "dns": "",
+                "port": "10050"
+              }
+            ],
+            "groups": [
+              { "groupid": group_result.json.result[0].groupid }
+            ],
+            "templates": [
+              { "templateid": template_result.json.result[0].templateid }
+            ]
+          },
+          "id": 5
+        }
+      }}
+    return_content: yes
+  when: (host_check_results['web1'].json.result | default([])) | length == 0
+  register: host_create_web1
+  failed_when: "'error' in host_create_web1.json"
+
+- name: Debug - Show created host web1 and its ID
+  debug:
+    msg: |
+      Host "web1" was created.
+      Response: {{ host_create_web1.json | to_nice_json }}
+
+- name: Pause for x seconds before creating next host
+  ansible.builtin.pause:
+    seconds: 120
+
+- name: Create Zabbix host web2 if it does not exist
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body: >
+      {{
+        {
+          "jsonrpc": "2.0",
+          "method": "host.create",
+          "params": {
+            "host": "web2",
+            "name": "web2",
+            "interfaces": [
+              {
+                "type": 1,
+                "main": 1,
+                "useip": 1,
+                "ip": hostvars['web2'].ansible_host,
+                "dns": "",
+                "port": "10050"
+              }
+            ],
+            "groups": [
+              { "groupid": group_result.json.result[0].groupid }
+            ],
+            "templates": [
+              { "templateid": template_result.json.result[0].templateid }
+            ]
+          },
+          "id": 6
+        }
+      }}
+    return_content: yes
+  when: (host_check_results['web2'].json.result | default([])) | length == 0
+  register: host_create_web2
+  failed_when: "'error' in host_create_web2.json"
+
+- name: Debug - Show created host web2 and its ID
+  debug:
+    msg: |
+      Host "web2" was created.
+      Response: {{ host_create_web2.json | to_nice_json }}
+
+- name: Pause for x seconds after creating last host
+  ansible.builtin.pause:
+    seconds: 120

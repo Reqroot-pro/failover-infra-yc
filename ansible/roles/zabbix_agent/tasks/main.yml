@@ -1,0 +1,63 @@
+---
+- name: Wait for apt lock to be released
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  retries: 12
+  delay: 5
+  register: result
+  until: result.rc == 0
+  become: yes
+
+- name: Download and install Zabbix repository package
+  get_url:
+    url: https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+    dest: /tmp/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+  become: yes
+
+- name: Install Zabbix repository
+  apt:
+    deb: /tmp/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+    state: present
+  become: yes
+  
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  become: yes
+
+- name: Install Zabbix agent
+  apt:
+    name: zabbix-agent
+    state: present
+    update_cache: true
+  become: yes
+
+- name: Ensure /etc/zabbix directory exists
+  file:
+    path: /etc/zabbix
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes  
+
+- name: Configure Zabbix agent
+  template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify: Restart Zabbix agent
+
+# Перезапустить и включить Zabbix agent
+- name: Ensure Zabbix agent is restarted and enabled
+  service:
+    name: zabbix-agent
+    state: restarted
+    enabled: true
+  become: yes
+

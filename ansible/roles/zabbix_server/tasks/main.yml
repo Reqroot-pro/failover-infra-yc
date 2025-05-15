@@ -1,0 +1,210 @@
+---
+# Ожидание освобождения блокировки пакетного менеджера
+- name: Wait for apt lock to be released
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  retries: 12
+  delay: 5
+  register: result
+  until: result.rc == 0
+  become: yes
+
+- name: Download and install Zabbix repository package
+  get_url:
+    url: https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+    dest: /tmp/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+  register: download_result
+  until: download_result is not failed
+  retries: 6
+  delay: 10
+  become: yes
+
+- name: Install Zabbix repository
+  apt:
+    deb: /tmp/zabbix-release_latest_7.2+ubuntu22.04_all.deb
+    state: present
+  become: yes
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  become: yes
+
+# Установка PostgreSQL, если его нет
+- name: Install PostgreSQL
+  apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+    state: present
+    update_cache: yes
+  become: yes
+
+# Установка Zabbix сервер, frontend и agent
+- name: Install Zabbix server, frontend, and agent
+  apt:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-frontend-php
+      - php8.1-pgsql
+      - zabbix-apache-conf
+      - zabbix-sql-scripts
+      - zabbix-agent
+    state: present
+    update_cache: yes
+  become: yes
+
+# Проверка и создание пользователя PostgreSQL
+- name: Check if zabbix user exists in PostgreSQL
+  shell: |
+    sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='zabbix'" | grep -q 1 && echo 'exists' || echo 'not_exists'
+  register: user_check
+  changed_when: false
+  become: yes
+
+- name: Create PostgreSQL user zabbix
+  shell: |
+    sudo -u postgres psql -c "CREATE USER zabbix WITH PASSWORD '{{ zabbix_db_password }}';"
+  become: yes
+  when: user_check.stdout == 'not_exists'
+  
+# Проверка и создание БД PostgreSQL
+- name: Check if zabbix database exists
+  shell: |
+    sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='zabbix'" | grep -q 1 && echo 'exists' || echo 'not_exists'
+  register: db_check
+  changed_when: false
+  become: yes
+
+- name: Create PostgreSQL database zabbix
+  shell: |
+    sudo -u postgres psql -c "CREATE DATABASE zabbix OWNER zabbix;"
+  become: yes
+  when: db_check.stdout == 'not_exists'
+  
+- name: Restart PostgreSQL
+  service:
+    name: postgresql
+    state: restarted
+  become: yes
+
+# Импорт начальной схемы Zabbix в PostgreSQL
+- name: Check if zabbix DB already initialized
+  shell: |
+    sudo -u postgres psql -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hosts'" zabbix | grep -q 1 && echo 'exists' || echo 'not_exists'
+  register: db_initialized
+  changed_when: false
+  become: yes
+
+- name: Import Zabbix initial database schema
+  shell: |
+    zcat /usr/share/zabbix/sql-scripts/postgresql/server.sql.gz | sudo -u zabbix psql zabbix
+  become: yes
+  register: import_result
+  failed_when: import_result.rc != 0
+  when: db_initialized.stdout == 'not_exists'
+
+# Убедиться, что директория для конфигурации Zabbix существует
+- name: Ensure directory for Zabbix config exists
+  file:
+    path: /usr/share/zabbix/ui/conf/
+    state: directory
+    mode: '0755'
+  become: yes
+
+# Настройка подключения к базе данных Zabbix в PHP
+- name: Configure Zabbix web frontend using template
+  template:
+    src: zabbix.conf.php.j2
+    dest: /usr/share/zabbix/ui/conf/zabbix.conf.php
+    owner: root
+    group: www-data
+    mode: '0644'
+  become: yes
+  notify: restart zabbix-server
+
+# Убедиться, что директория для конфигурации Apache существует
+- name: Ensure directory for Apache config exists
+  file:
+    path: /etc/apache2/sites-available
+    state: directory
+    mode: '0755'
+  become: yes
+
+# Копировать конфигурацию Apache для Zabbix
+- name: Configure Zabbix Apache site
+  copy:
+    src: zabbix.conf
+    dest: /etc/apache2/sites-available/zabbix.conf
+    owner: root
+    group: www-data
+    mode: '0644'
+  become: yes
+  notify: restart apache2
+
+# Включить сайт Zabbix
+- name: Enable Zabbix site
+  command: a2ensite zabbix.conf
+  become: yes
+  
+# Отключить стандартный сайт Apache
+- name: Disable default Apache site
+  command: a2dissite 000-default.conf
+  become: yes
+  notify: restart apache2
+
+# Настройка PHP
+- name: Get PHP version
+  command: php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'
+  register: php_version
+  changed_when: false
+
+- name: Set PHP configuration options
+  lineinfile:
+    path: "/etc/php/{{ php_version.stdout }}/apache2/php.ini"
+    regexp: '^{{ item.option }}'
+    line: '{{ item.option }} = {{ item.value | quote }}'
+  loop:
+    - { option: 'post_max_size', value: '16M' }
+    - { option: 'max_execution_time', value: '300' }
+    - { option: 'max_input_time', value: '300' }
+    - { option: 'date.timezone', value: 'Europe/Moscow' }
+  become: yes
+  notify: restart apache2
+  
+# Установка пароля
+- name: Set DBPassword in zabbix_server.conf
+  ansible.builtin.lineinfile:
+    path: /etc/zabbix/zabbix_server.conf
+    regexp: '^#?\s*DBPassword='
+    line: "DBPassword={{ zabbix_db_password }}"
+    backup: yes
+  become: yes
+  notify: restart zabbix-server
+  
+# Перезапустить и включить Zabbix server
+- name: Restart and enable Zabbix server
+  service:
+    name: zabbix-server
+    state: restarted
+    enabled: true
+  become: yes
+
+# Перезапустить и включить Zabbix agent
+- name: Restart and enable Zabbix agent
+  service:
+    name: zabbix-agent
+    state: restarted
+    enabled: true
+  become: yes
+
+# Перезапустить и включить Apache
+- name: Restart and enable Apache
+  service:
+    name: apache2
+    state: restarted
+    enabled: true
+  become: yes  
+

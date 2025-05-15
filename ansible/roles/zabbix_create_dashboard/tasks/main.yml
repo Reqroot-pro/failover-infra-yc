@@ -1,0 +1,1206 @@
+- name: Authorize in Zabbix API
+  ansible.builtin.uri:
+    url: '{{ zabbix_api_url }}'
+    method: POST
+    headers:
+      Content-Type: application/json
+    body_format: json
+    body:
+      jsonrpc: '2.0'
+      method: user.login
+      params:
+        username: '{{ zabbix_user }}'
+        password: '{{ zabbix_password }}'
+      id: 1
+    return_content: 'yes'
+  register: zabbix_auth
+
+- name: Wait until both hosts are available via Zabbix Agent (active)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: host.get
+      params:
+        filter:
+          host:
+            - web1
+            - web2
+        output:
+          - host
+          - hostid
+          - status
+          - active_available
+      id: 5
+    return_content: yes
+  register: host_status_check
+  until: >
+    host_status_check.json.result | length == 2 and
+    (host_status_check.json.result | map(attribute='active_available') | select('equalto', '1') | list | length) == 2
+  retries: 30
+  delay: 5
+
+- name: Debug raw Zabbix response
+  ansible.builtin.debug:
+    msg: "{{ host_status_check.json.result }}"
+
+- name: Create dashboard
+  ansible.builtin.uri:
+    url: '{{ zabbix_api_url }}'
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: 'Bearer {{ zabbix_auth.json.result }}'
+    body_format: json
+    body:
+      jsonrpc: '2.0'
+      method: dashboard.create
+      params:
+        name: "My dashboard"
+        display_period: 30
+        auto_start: 1
+        pages:
+          - name: ''
+            display_period: 0
+            widgets:
+              - type: "problems"
+                x: 0
+                y: 0
+                width: 55
+                height: 3
+                view_mode: 0
+                fields:
+                  - name: reference
+                    type: 1
+                    value: "ZKAEG"
+              - type: "clock"
+                x: 55
+                y: 0
+                width: 17
+                height: 3
+                view_mode: 0
+                fields:
+                  - name: clock_type
+                    type: 0
+                    value: "1"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+              - type: "svggraph"
+                x: 13
+                y: 6
+                width: 23
+                height: 5
+                name: "CPU utilization"
+                view_mode: 0
+                fields:
+                  - name: ds.0.hosts.0
+                    type: 1
+                    value: "web1"
+                  - name: ds.0.items.0
+                    type: 1
+                    value: "CPU utilization"
+                  - name: ds.0.color
+                    type: 1
+                    value: "FF465C"
+                  - name: ds.1.hosts.0
+                    type: 1
+                    value: "web2"
+                  - name: ds.1.items.0
+                    type: 1
+                    value: "CPU utilization"
+                  - name: ds.1.color
+                    type: 1
+                    value: "FFD54F"
+                  - name: simple_triggers
+                    type: 0
+                    value: "1"
+                  - name: righty
+                    type: 0
+                    value: "0"
+                  - name: legend_statistic
+                    type: 0
+                    value: "1"
+                  - name: show_problems
+                    type: 0
+                    value: "1"
+                  - name: problemhosts.0
+                    type: 1
+                    value: "web1"
+                  - name: problemhosts.1
+                    type: 1
+                    value: "web2"
+                  - name: reference
+                    type: 1
+                    value: "MTCNT"
+                  - name: legend_lines
+                    type: 0
+                    value: "2"
+                  - name: ds.0.override_hostid._reference
+                    type: 1
+                    value: "GIAIU._hostid"
+                  - name: ds.1.override_hostid._reference
+                    type: 1
+                    value: "GIAIU._hostid"
+              - type: "svggraph"
+                x: 36
+                y: 6
+                width: 36
+                height: 5
+                name: "CPU saturation"
+                view_mode: 0
+                fields:
+                  - name: ds.0.hosts.0
+                    type: 1
+                    value: "web1"
+                  - name: ds.0.items.0
+                    type: 1
+                    value: "Load average (1m avg)"
+                  - name: ds.0.items.1
+                    type: 1
+                    value: "Load average (5m avg)"
+                  - name: ds.0.items.2
+                    type: 1
+                    value: "Load average (15m avg)"
+                  - name: ds.0.color
+                    type: 1
+                    value: "FF465C"
+                  - name: ds.1.hosts.0
+                    type: 1
+                    value: "web2"
+                  - name: ds.1.items.0
+                    type: 1
+                    value: "Load average (1m avg)"
+                  - name: ds.1.items.1
+                    type: 1
+                    value: "Load average (5m avg)"
+                  - name: ds.1.items.2
+                    type: 1
+                    value: "Load average (15m avg)"
+                  - name: ds.1.color
+                    type: 1
+                    value: "FFD54F"
+                  - name: simple_triggers
+                    type: 0
+                    value: "1"
+                  - name: righty
+                    type: 0
+                    value: "0"
+                  - name: legend_statistic
+                    type: 0
+                    value: "1"
+                  - name: legend_lines
+                    type: 0
+                    value: "10"
+                  - name: show_problems
+                    type: 0
+                    value: "1"
+                  - name: reference
+                    type: 1
+                    value: "CWHZQ"
+                  - name: legend_lines_mode
+                    type: 0
+                    value: "1"
+                  - name: problemhosts.0
+                    type: 1
+                    value: "web1"
+                  - name: problemhosts.1
+                    type: 1
+                    value: "web2"
+                  - name: ds.0.override_hostid._reference
+                    type: 1
+                    value: "GIAIU._hostid"
+                  - name: ds.1.override_hostid._reference
+                    type: 1
+                    value: "GIAIU._hostid"
+              - type: "gauge"
+                x: 57
+                y: 18
+                width: 15
+                height: 3
+                name: "RAM saturation web2"
+                view_mode: 0
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50179"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "0"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "10"
+                  - name: thresholds.2.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.2.threshold
+                    type: 1
+                    value: "20"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "IDNZT._hostid"
+              - type: "gauge"
+                x: 21
+                y: 18
+                width: 15
+                height: 3
+                name: "RAM saturation web1"
+                view_mode: 0
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50083"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "0"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "10"
+                  - name: thresholds.2.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.2.threshold
+                    type: 1
+                    value: "20"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "MBSAR._hostid"
+              - type: "honeycomb"
+                x: 0
+                y: 18
+                width: 7
+                height: 3
+                name: "RAM web1"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: items.0
+                    type: 1
+                    value: "Total memory"
+                  - name: reference
+                    type: 1
+                    value: "MBSAR"
+                  - name: primary_label
+                    type: 1
+                    value: "{HOST.NAME}: 2GB\r\nдоступно:"
+              - type: "gauge"
+                x: 7
+                y: 18
+                width: 14
+                height: 3
+                view_mode: 0
+                name: "RAM utilization web1"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50107"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "MBSAR._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "80"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "90"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+              - type: "gauge"
+                x: 43
+                y: 18
+                width: 14
+                height: 3
+                view_mode: 0
+                name: "RAM utilization web2"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50203"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "IDNZT._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "80"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "90"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+              - type: "honeycomb"
+                x: 36
+                y: 18
+                width: 7
+                height: 3
+                name: "RAM web2"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10669"
+                  - name: items.0
+                    type: 1
+                    value: "Total memory"
+                  - name: primary_label
+                    type: 1
+                    value: "{HOST.NAME}: 2GB\r\nдоступно:"
+                  - name: reference
+                    type: 1
+                    value: "IDNZT"
+              - type: "honeycomb"
+                x: 0
+                y: 24
+                width: 9
+                height: 3
+                name: "HTTP Status"
+                view_mode: 0
+                fields:
+                  - name: items.0
+                    type: 1
+                    value: "Response code for step \"Load Homepage\" of scenario \"Web1 Homepage Check\"."
+                  - name: reference
+                    type: 1
+                    value: "IOUVX"
+                  - name: secondary_label_type
+                    type: 0
+                    value: "0"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "503"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "200"
+              - type: "honeycomb"
+                x: 9
+                y: 24
+                width: 9
+                height: 3
+                name: "HTTP Status"
+                view_mode: 0
+                fields:
+                  - name: items.0
+                    type: 1
+                    value: "Response code for step \"Load Homepage\" of scenario \"Web2 Homepage Check\"."
+                  - name: reference
+                    type: 1
+                    value: "HIMOK"
+                  - name: secondary_label_type
+                    type: 0
+                    value: "0"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "503"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "200"
+              - type: "hostavail"
+                x: 18
+                y: 24
+                width: 54
+                height: 3
+                view_mode: 0
+                fields:
+                  - name: interface_type.0
+                    type: 0
+                    value: "1"
+                  - name: interface_type.1
+                    type: 0
+                    value: "5"
+              - type: "gauge"
+                x: 7
+                y: 14
+                width: 14
+                height: 4
+                view_mode: 0
+                name: "Disk utilization web1"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50150"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "KVRHP._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "80"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "90"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+              - type: "gauge"
+                x: 43
+                y: 14
+                width: 14
+                height: 4
+                view_mode: 0
+                name: "Disk utilization web2"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50237"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "PTVIP._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "80"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "90"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+              - type: "gauge"
+                x: 21
+                y: 14
+                width: 15
+                height: 4
+                view_mode: 0
+                name: "Disk saturation web1"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50151"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "KVRHP._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "0"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "10"
+                  - name: thresholds.2.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.2.threshold
+                    type: 1
+                    value: "20"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+              - type: "gauge"
+                x: 57
+                y: 14
+                width: 15
+                height: 4
+                view_mode: 0
+                name: "Disk saturation web2"
+                fields:
+                  - name: itemid.0
+                    type: 4
+                    value: "50238"
+                  - name: min
+                    type: 1
+                    value: "0"
+                  - name: max
+                    type: 1
+                    value: "100"
+                  - name: show.0
+                    type: 0
+                    value: "1"
+                  - name: show.1
+                    type: 0
+                    value: "2"
+                  - name: show.2
+                    type: 0
+                    value: "3"
+                  - name: show.3
+                    type: 0
+                    value: "4"
+                  - name: show.4
+                    type: 0
+                    value: "5"
+                  - name: override_hostid._reference
+                    type: 1
+                    value: "PTVIP._hostid"
+                  - name: thresholds.0.color
+                    type: 1
+                    value: "E65660"
+                  - name: thresholds.0.threshold
+                    type: 1
+                    value: "0"
+                  - name: thresholds.1.color
+                    type: 1
+                    value: "FCCB1D"
+                  - name: thresholds.1.threshold
+                    type: 1
+                    value: "10"
+                  - name: thresholds.2.color
+                    type: 1
+                    value: "3BC97D"
+                  - name: thresholds.2.threshold
+                    type: 1
+                    value: "20"
+                  - name: th_show_labels
+                    type: 0
+                    value: "1"
+                  - name: th_show_arc
+                    type: 0
+                    value: "1"
+              - type: "honeycomb"
+                x: 36
+                y: 14
+                width: 7
+                height: 4
+                name: "Disk web2"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10669"
+                  - name: items.0
+                    type: 1
+                    value: "FS [/]: Space: Total"
+                  - name: primary_label
+                    type: 1
+                    value: "{HOST.NAME}: 8GB\r\nдоступно:"
+                  - name: reference
+                    type: 1
+                    value: "PTVIP"
+              - type: "honeycomb"
+                x: 0
+                y: 14
+                width: 7
+                height: 4
+                name: "Disk web1"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: items.0
+                    type: 1
+                    value: "FS [/]: Space: Total"
+                  - name: primary_label
+                    type: 1
+                    value: "{HOST.NAME}: 8GB\r\nдоступно:"
+                  - name: reference
+                    type: 1
+                    value: "KVRHP"
+              - type: "problems"
+                x: 0
+                y: 11
+                width: 72
+                height: 3
+                name: "Ошибки I/O"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: hostids.1
+                    type: 3
+                    value: "10669"
+                  - name: tags.0.tag
+                    type: 1
+                    value: "component"
+                  - name: tags.0.operator
+                    type: 0
+                    value: "0"
+                  - name: tags.0.value
+                    type: 1
+                    value: "storage"
+                  - name: tags.1.tag
+                    type: 1
+                    value: "component"
+                  - name: tags.1.operator
+                    type: 0
+                    value: "0"
+                  - name: tags.1.value
+                    type: 1
+                    value: "memory"
+                  - name: show_symptoms
+                    type: 0
+                    value: "1"
+                  - name: reference
+                    type: 1
+                    value: "IPRPR"
+              - type: "problems"
+                x: 0
+                y: 3
+                width: 72
+                height: 3
+                name: "Ошибки CPU"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: hostids.1
+                    type: 3
+                    value: "10669"
+                  - name: tags.0.tag
+                    type: 1
+                    value: "component"
+                  - name: tags.0.operator
+                    type: 0
+                    value: "0"
+                  - name: tags.0.value
+                    type: 1
+                    value: "cpu"
+                  - name: show_symptoms
+                    type: 0
+                    value: "1"
+                  - name: reference
+                    type: 1
+                    value: "SXCYT"
+              - type: "problems"
+                x: 0
+                y: 21
+                width: 72
+                height: 3
+                name: "Ошибки Network"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: hostids.1
+                    type: 3
+                    value: "10669"
+                  - name: tags.0.tag
+                    type: 1
+                    value: "interface"
+                  - name: tags.0.operator
+                    type: 0
+                    value: "0"
+                  - name: tags.0.value
+                    type: 1
+                    value: "eth0"
+                  - name: reference
+                    type: 1
+                    value: "QCCWA"
+              - type: "svggraph"
+                x: 37
+                y: 27
+                width: 35
+                height: 3
+                name: "Network utilization"
+                view_mode: 0
+                fields:
+                  - name: ds.0.hosts.0
+                    type: 1
+                    value: "web1"
+                  - name: ds.0.items.0
+                    type: 1
+                    value: "Download speed for scenario \"Web1 Homepage Check\"."
+                  - name: ds.0.color
+                    type: 1
+                    value: "FF465C"
+                  - name: ds.1.hosts.0
+                    type: 1
+                    value: "web2"
+                  - name: ds.1.items.0
+                    type: 1
+                    value: "Download speed for scenario \"Web2 Homepage Check\"."
+                  - name: ds.1.color
+                    type: 1
+                    value: "FFD54F"
+                  - name: simple_triggers
+                    type: 0
+                    value: "1"
+                  - name: righty
+                    type: 0
+                    value: "0"
+                  - name: legend_statistic
+                    type: 0
+                    value: "1"
+                  - name: reference
+                    type: 1
+                    value: "RKLGT"
+                  - name: legend_lines_mode
+                    type: 0
+                    value: "1"
+                  - name: legend_lines
+                    type: 0
+                    value: "10"
+              - type: "honeycomb"
+                x: 0
+                y: 6
+                width: 13
+                height: 5
+                name: "CPU Cores"
+                view_mode: 0
+                fields:
+                  - name: hostids.0
+                    type: 3
+                    value: "10668"
+                  - name: hostids.1
+                    type: 3
+                    value: "10669"
+                  - name: items.0
+                    type: 1
+                    value: "Number of CPUs"
+                  - name: reference
+                    type: 1
+                    value: "GIAIU"
+              - type: "svggraph"
+                x: 0
+                y: 27
+                width: 37
+                height: 3
+                name: "HTTP Response (ping)"
+                view_mode: 0
+                fields:
+                  - name: ds.0.hosts.0
+                    type: 1
+                    value: "web1"
+                  - name: ds.0.items.0
+                    type: 1
+                    value: "Response time for step \"Load Homepage\" of scenario \"Web1 Homepage Check\"."
+                  - name: ds.0.color
+                    type: 1
+                    value: "FF465C"
+                  - name: ds.1.hosts.0
+                    type: 1
+                    value: "web2"
+                  - name: ds.1.items.0
+                    type: 1
+                    value: "Response time for step \"Load Homepage\" of scenario \"Web2 Homepage Check\"."
+                  - name: ds.1.color
+                    type: 1
+                    value: "FFD54F"
+                  - name: righty
+                    type: 0
+                    value: "0"
+                  - name: reference
+                    type: 1
+                    value: "MCNZI"
+                  - name: ds.0.type
+                    type: 0
+                    value: "3"
+                  - name: ds.1.type
+                    type: 0
+                    value: "3"
+                  - name: legend_statistic
+                    type: 0
+                    value: "1"
+                  - name: legend_lines_mode
+                    type: 0
+                    value: "1"
+                  - name: legend_lines
+                    type: 0
+                    value: "4"
+        userGroups:
+          - usrgrpid: "7"
+            permission: 3
+        users:
+          - userid: "1"
+            permission: 3
+      id: 3
+    return_content: 'yes'
+  register: create_result
+
+- name: Handle dashboard creation result
+  block:
+    - name: Check if dashboard already exists
+      ansible.builtin.debug:
+        msg: "Dashboard already exists: {{ create_result.json.error.data }}"
+      when:
+        - create_result.json.error is defined
+        - "'already exists' in create_result.json.error.data|lower"
+      ignore_errors: yes
+
+    - name: Fail for other creation errors
+      ansible.builtin.fail:
+        msg: "Dashboard creation failed: {{ create_result.json.error.data }}"
+      when:
+        - create_result.json.error is defined
+        - "'already exists' not in create_result.json.error.data|lower"
+
+    - name: Success message if created
+      ansible.builtin.debug:
+        msg: "Dashboard created successfully! ID: {{ create_result.json.result.dashboardids[0] }}"
+      when: create_result.json.result is defined
+  when: create_result.json is defined
+    
+#  Добавляем Web Scenario для хостов
+- name: Get host IDs
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: host.get
+      params:
+        filter:
+          host: ["web1", "web2"]
+        output: ["hostid", "host"]
+      id: 4
+  register: host_info
+  changed_when: false
+  
+- name: Debug raw host_info result
+  debug:
+    msg: "{{ host_info.json.result }}"
+
+- name: Set hostids as facts
+  set_fact:
+    web1_hostid: "{{ (host_info.json.result | selectattr('host', 'equalto', 'web1') | list | first).hostid }}"
+    web2_hostid: "{{ (host_info.json.result | selectattr('host', 'equalto', 'web2') | list | first).hostid }}"
+    
+- name: Show found hostids for web1 and web2
+  debug:
+    msg:
+      web1_hostid: "{{ web1_hostid }}"
+      web2_hostid: "{{ web2_hostid }}"
+
+- name: Verify hosts exist
+  ansible.builtin.assert:
+    that:
+      - web1_hostid is defined
+      - web2_hostid is defined
+    fail_msg: "Could not find both hosts in Zabbix. Found: {{ host_info.json.result }}"
+
+# Web Scenario for web1
+- name: Create minimal Web Scenario for web1
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: httptest.create
+      params:
+        name: "Web1 Homepage Check"
+        hostid: "{{ web1_hostid }}"
+        tags:
+          - tag: "check"
+            value: "web"
+        steps:
+          - name: "Load Homepage"
+            url: "{{ http_url }}"
+            timeout: "15s"
+            'no': "1"
+            required: ""
+            status_codes: "200"
+            follow_redirects: "1"
+      id: 5
+  register: create_web1
+  ignore_errors: yes  # Продолжаем при ошибках
+  changed_when: false
+
+- name: Handle web1 scenario creation result
+  block:
+    - name: Check if web scenario already exists
+      ansible.builtin.debug:
+        msg: "Web Scenario 'Web1 Homepage Check' already exists, continuing..."
+      when: 
+        - create_web1.json.error is defined
+        - "'already exists' in create_web1.json.error.data|lower"
+
+    - name: Fail for other errors
+      ansible.builtin.fail:
+        msg: "Error creating Web Scenario for web1: {{ create_web1.json.error.data }}"
+      when:
+        - create_web1.json.error is defined
+        - "'already exists' not in create_web1.json.error.data|lower"
+
+    - name: Success message if created
+      ansible.builtin.debug:
+        msg: "Web Scenario created successfully! ID: {{ create_web1.json.result.httptestids[0] }}"
+      when: create_web1.json.result is defined
+  when: create_web1.json is defined
+
+# Web Scenario for web2
+- name: Create minimal Web Scenario for web2
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ zabbix_auth.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: httptest.create
+      params:
+        name: "Web2 Homepage Check"
+        hostid: "{{ web2_hostid }}"
+        tags:
+          - tag: "check"
+            value: "web"        
+        steps:
+          - name: "Load Homepage"
+            url: "{{ http_url }}"
+            timeout: "15s"
+            'no': "1"
+            required: ""
+            status_codes: "200"
+            follow_redirects: "1"
+      id: 6
+  register: create_web2
+  ignore_errors: yes  # Продолжаем при ошибках
+  changed_when: false
+
+- name: Handle web2 scenario creation result
+  block:
+    - name: Check if web scenario already exists
+      ansible.builtin.debug:
+        msg: "Web Scenario 'Web2 Homepage Check' already exists, continuing..."
+      when: 
+        - create_web2.json.error is defined
+        - "'already exists' in create_web2.json.error.data|lower"
+
+    - name: Fail for other errors
+      ansible.builtin.fail:
+        msg: "Error creating Web Scenario for web2: {{ create_web2.json.error.data }}"
+      when:
+        - create_web2.json.error is defined
+        - "'already exists' not in create_web2.json.error.data|lower"
+
+    - name: Success message if created
+      ansible.builtin.debug:
+        msg: "Web Scenario created successfully! ID: {{ create_web2.json.result.httptestids[0] }}"
+      when: create_web2.json.result is defined
+  when: create_web2.json is defined

@@ -1,0 +1,4 @@
+- hosts: zabbix_server
+  roles:
+    - get_dashboard_id
+   

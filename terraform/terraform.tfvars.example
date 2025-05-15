@@ -1,0 +1,12 @@
+# Значения переменных для Terraform
+cloud_id         = "<YOUR_CLOUD_ID>"
+folder_id        = "<YOUR_FOLDER_ID>"
+sa_key_file      = "/path/to/your_service_account_key.json"
+zone             = "ru-central1-a"
+
+public_key_path  = "~/.ssh/id_rsa.pub"
+private_key_path = "~/.ssh/id_rsa"
+
+vm_image         = "ubuntu-2204-lts"
+vm_cpu           = 2
+vm_memory        = 2

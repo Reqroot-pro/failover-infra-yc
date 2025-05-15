@@ -1,0 +1,110 @@
+---
+- name: Wait for apt lock to be released
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      sleep 5
+    done
+  retries: 12
+  delay: 5
+  register: result
+  until: result.rc == 0
+  become: yes
+
+- name: Install Docker dependencies
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  become: yes
+
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+  become: yes
+
+- name: Install Docker
+  apt:
+    name: docker-ce
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: true
+  become: yes
+  
+- name: Pull Filebeat image from Docker Hub
+  docker_image:
+    name: elastic/filebeat
+    tag: "8.17.5"
+    source: pull
+  become: yes
+
+- name: Ensure Filebeat data directory exists on host for container data
+  file:
+    path: /var/lib/filebeat/data
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0755'
+  become: yes
+
+- name: Ensure Filebeat data directory exists
+  file:
+    path: /etc/filebeat
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0755'
+  become: yes  
+
+- name: Configure Filebeat
+  template:
+    src: filebeat.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: 1000
+    group: 1000
+    mode: '0644'
+  become: yes
+  notify: Restart Filebeat container
+  
+- name: Ensure Filebeat log directory exists on host
+  file:
+    path: /var/log/filebeat
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Run Filebeat container
+  docker_container:
+    name: filebeat
+    image: elastic/filebeat:8.17.5
+    state: started
+    restart_policy: always
+    recreate: yes
+    volumes:
+      - /etc/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - /var/log/nginx:/var/log/nginx:ro
+      - /var/log/filebeat:/var/log/filebeat
+      - /var/lib/filebeat/data:/usr/share/filebeat/data
+    groups:
+      - adm
+    env:
+      ELASTICSEARCH_HOSTS: "http://{{ hostvars['elastic']['ansible_host'] }}:9200"
+      KIBANA_HOST: "http://{{ hostvars['kibana1']['ansible_host'] }}:5601"
+  become: yes
+

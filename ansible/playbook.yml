@@ -1,0 +1,19 @@
+- hosts: web
+  roles:
+    - nginx
+    - zabbix_agent
+    - filebeat
+
+- hosts: zabbix_server
+  roles:
+    - zabbix_server
+    - zabbix_create_hosts
+    - zabbix_create_dashboard
+
+- hosts: elasticsearch
+  roles:
+    - elasticsearch
+
+- hosts: kibana
+  roles:
+    - kibana
