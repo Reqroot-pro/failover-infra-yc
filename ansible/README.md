@@ -1,4 +1,3 @@
-
 ##  Подготовка перед запуском Ansible-плейбука
 
 Перед запуском плейбука необходимо убедиться, что хост добавлен в список известных SSH-ключей. Это предотвратит ошибки подключения в Ansible.
@@ -9,8 +8,10 @@
 
 ```bash
 ssh-keyscan -H "Your Bastion IP" >> ~/.ssh/known_hosts
+```
 
 ### 2. Чтобы избежать предупреждений от Ansible при первом подключении, выполните тестовое подключение:
 
 ```bash
 ssh -o StrictHostKeyChecking=accept-new ubuntu@"Your Bastion IP" 'exit'
+```
