@@ -74,12 +74,13 @@ Cоздайте ВМ, разверните на ней Elasticsearch. Устан
 
 
 
-*3
+*3.
+
  Инстансы ![Инстансы](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/instances.png)
- ![Target Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/target-group.png)
- ![Backend Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/backgroup.png)
- ![HTTP router](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/http-router.png)
- ![VPC](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc.png)
- ![Security Groups](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc-sg.png)
- ![Снапшот разовый](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots.png)
- ![Снапшот ежедневный](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots_daily.png)
+ Target Group ![Target Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/target-group.png)
+ Backend Group ![Backend Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/backgroup.png)
+ HTTP router ![HTTP router](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/http-router.png)
+ Network ![VPC](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc.png)
+ Security Groups ![Security Groups](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc-sg.png)
+ Снапшот разовый ![Снапшот разовый](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots.png)
+ Снапшот ежедневный ![Снапшот ежедневный](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots_daily.png)
