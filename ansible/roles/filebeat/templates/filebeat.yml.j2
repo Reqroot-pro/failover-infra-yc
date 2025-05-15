@@ -5,9 +5,8 @@ filebeat.inputs:
     enabled: true
     paths:
       - /var/log/nginx/access.log*
-
-    # Добавляем мета-поле для идентификации типа лога
     fields:
+      server_name: "{{ inventory_hostname }}"
       log_type: nginx_access
     fields_under_root: true
 
@@ -24,9 +23,8 @@ filebeat.inputs:
     enabled: true
     paths:
       - /var/log/nginx/error.log*
-
-    # Добавляем мета-поле для идентификации типа лога
     fields:
+      server_name: "{{ inventory_hostname }}"
       log_type: nginx_error
     fields_under_root: true
 
