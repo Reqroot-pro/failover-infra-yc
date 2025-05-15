@@ -75,8 +75,11 @@ Cоздайте ВМ, разверните на ней Elasticsearch. Устан
 
 
 *3
- ![Инстансы ](ссылка на скриншот)
- ![VPC ](ссылка на скриншот)
- ![Security-groups ](ссылка на скриншот)
- ![Снапшот разовый ](ссылка на скриншот)
- ![Снапшот ежедневный ](ссылка на скриншот)
+ ![Инстансы](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/instances.png)
+ ![Target Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots.png)
+ ![Backend Group](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots_daily.png)
+ ![HTTP router](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots_daily.png)
+ ![VPC](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc.png)
+ ![Security Groups](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/vpc-sg.png)
+ ![Снапшот разовый](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots.png)
+ ![Снапшот ежедневный](https://github.com/Reqroot-pro/failover-infra-yc/blob/main/images/snapshots_daily.png)
