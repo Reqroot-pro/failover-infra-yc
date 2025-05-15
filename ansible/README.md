@@ -15,3 +15,7 @@ ssh-keyscan -H <Your Bastion IP> >> ~/.ssh/known_hosts
 ```bash
 ssh -o StrictHostKeyChecking=accept-new ubuntu@<Your Bastion IP> 'exit'
 ```
+
+
+### БОНУС
+Дашборд zabbix разворачивается сразу с доступными метриками по принципу USE (Utilization, Saturation, Errors) для CPU, RAM, диски, сеть, http запросов к веб-серверам + трешхолды.
