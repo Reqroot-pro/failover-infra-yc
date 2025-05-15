@@ -7,11 +7,11 @@
 Выполни команду, чтобы добавить SSH-ключ бастион-хоста в `known_hosts`:
 
 ```bash
-ssh-keyscan -H "Your Bastion IP" >> ~/.ssh/known_hosts
+ssh-keyscan -H <Your Bastion IP> >> ~/.ssh/known_hosts
 ```
 
 ### 2. Чтобы избежать предупреждений от Ansible при первом подключении, выполните тестовое подключение:
 
 ```bash
-ssh -o StrictHostKeyChecking=accept-new ubuntu@"Your Bastion IP" 'exit'
+ssh -o StrictHostKeyChecking=accept-new ubuntu@<Your Bastion IP> 'exit'
 ```
