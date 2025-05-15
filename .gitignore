@@ -11,6 +11,7 @@ terraform.tfvars
 # Ansible
 *.retry
 ansible.log
+.~/export_zabbix
 
 # Sensitive/Private keys
 *.pem
