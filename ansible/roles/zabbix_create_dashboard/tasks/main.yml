@@ -1,3 +1,4 @@
+---
 - name: Authorize in Zabbix API
   ansible.builtin.uri:
     url: '{{ zabbix_api_url }}'

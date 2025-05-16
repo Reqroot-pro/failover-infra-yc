@@ -53,7 +53,6 @@
   become: yes
   notify: Restart Zabbix agent
 
-# Перезапустить и включить Zabbix agent
 - name: Ensure Zabbix agent is restarted and enabled
   service:
     name: zabbix-agent

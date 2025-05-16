@@ -27,7 +27,6 @@
   become: yes
   notify: Restart nginx
 
-# Перезапустить и включить nginx
 - name: Ensure nginx is restarted and enabled
   service:
     name: nginx

@@ -1,5 +1,4 @@
 ---
-
 # Авторизация
 - name: Authorize in Zabbix API
   ansible.builtin.uri:
