@@ -28,7 +28,7 @@ resource "yandex_alb_load_balancer" "web_lb" {
   }
 }
 
-# Target Group
+# Создание целевой группы
 resource "yandex_alb_target_group" "web_target_group" {
   name = "web-target-group"
 
@@ -43,7 +43,7 @@ resource "yandex_alb_target_group" "web_target_group" {
   }
 }
 
-# Создание бэкенд-группы
+# Создание бэкенд группы
 resource "yandex_alb_backend_group" "web_backend_group" {
   name = "web-backend-group"
 
