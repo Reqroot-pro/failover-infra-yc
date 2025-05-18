@@ -5,8 +5,8 @@ resource "yandex_compute_instance" "bastion" {
   platform_id = "standard-v1"
   
   resources {
-    cores  = 2
-    memory = 2
+    cores  = var.vm_cpu
+    memory = var.vm_memory
   }
 
   boot_disk {
